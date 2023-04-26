@@ -8,7 +8,6 @@ const { PORT } = process.env;
 app.use(cors());
 app.use('/videos', express.static('public/images'));
 app.use(express.json());
-
 app.use('/videos', videoRouter);
 app.use('/videos/:id', videoRouter);
 
