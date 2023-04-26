@@ -1,82 +1,49 @@
+const express = require('express');
+const router = express.Router();
 const fs = require('fs');
-const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
-const app = express();
-const port = process.env.PORT || 3000;
 
-app.use(express.json());
-app.use(cors());
-
-const videosFilePath = path.join(__dirname, 'videos.json');
-
-function readVideoDataFromFile() {
-    const data = fs.readFileSync(videosFilePath);
-    return JSON.parse(data);
+const videosFilePath = './data/videos.json';
+function readVideosFile() {
+    const videosList = fs.readFileSync(videosFilePath);
+    return JSON.parse(videosList);
 }
 
-function writeVideoDataToFile(data) {
-    const json = JSON.stringify(data);
-    fs.writeFileSync(videosFilePath, json);
-}
-
-function validateVideoData(data) {
-    const { title, description } = data;
-    if (!title || !description) {
-        throw new Error('Title and description are required');
-    }
-    if (title.length > 100 || description.length > 500) {
-        throw new Error('Title cannot be longer than 100 characters, and description cannot be longer than 500 characters');
-    }
-}
-
-app.get('/videos', (req, res) => {
-    const data = readVideoDataFromFile();
-    const videos = data.videos.map(video => {
-        return {
-            id: video.id,
-            title: video.title,
-            channel: video.channel,
-            image: video.image
-        };
-    });
-    res.json(videos);
+router.get('/', (req, res) => {
+    const videos = readVideosFile();
+    res.status(200).json(videos);
 });
 
-app.get('/videos/:id', (req, res) => {
-    const id = req.params.id;
-    const data = readVideoDataFromFile();
-    const video = data.videos.find(video => video.id === id);
-    if (!video) {
-        res.status(404).send('Video not found');
+router.get('/:id', (req, res) => {
+    const videos = readVideosFile();
+
+    const video = videos.find((video) => video.id === req.params.id);
+    if (video) {
+        res.status(200).json(video);
     } else {
-        res.json(video);
+        res.status(404).json({ error: 'Video not found.' });
     }
+})
+
+router.post('/', (req, res) => {
+    const videos = readVideosFile();
+    const newVideo = {
+        id: uuidv4(),
+        title: req.body.title,
+        channel: "New Channel",
+        image: "Upload-video-preview.jpg",
+        description: req.body.description,
+        views: "0",
+        likes: "0",
+        duration: "1:00",
+        video: "https://project-2-api.herokuapp.com/stream",
+        timestamp: Date.now(),
+        comments: []
+    };
+    videos.push(newVideo);
+    fs.writeFileSync(videosFilePath, JSON.stringify(videos));
+    res.status(201).json(newVideo);
 });
 
-app.post('/videos', (req, res) => {
-    try {
-        validateVideoData(req.body);
-        const data = readVideoDataFromFile();
-        const video = {
-            id: Math.random().toString(36).substr(2, 9),
-            title: req.body.title,
-            channel: 'My Channel',
-            image: req.body.image,
-            description: req.body.description
-        };
-        data.videos.push(video);
-        writeVideoDataToFile(data);
-        res.json(video);
-    } catch (error) {
-        res.status(400).send(error.message);
-    }
-});
-
-app.use((err, req, res, next) => {
-    console.error(err);
-    res.status(500).send('Something went wrong');
-});
-
-app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+module.exports = router;
